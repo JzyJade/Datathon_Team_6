@@ -1,0 +1,119 @@
+-- Patients' ID, outcome, gender, age, unit type, total score, admission time, discharge time, length (calculated), hospital length of stays(Los), ICU time, hospital ID, region
+select a.patientunitstayid,a.unitdischargestatus,a.gender,a.age,a.unitType,c.apachescore
+	,a.hospitaladmitoffset,a.hospitaldischargeoffset
+	,a.hospitaldischargeoffset - a.hospitaladmitoffset timeInHospital
+	,c.unabridgedhosplos
+	,c.unabridgedunitlos
+	,a.hospitalid
+	,d.region
+	,e.labresultoffset
+	from patient a,diagnosis b,apachepatientresult c,hospital d,lab e
+	where a.patientunitstayid = b.patientunitstayid
+	and a.patientunitstayid = c.patientunitstayid
+	and a.hospitalid = d.hospitalid
+	and a.patientunitstayid = e.patientunitstayid
+	and b.activeupondischarge = 'True'
+	and b.diagnosispriority = 'Primary'
+	and c.apacheversion = 'IV';
+
+--  extract each patient's 13 indicators data at first admission to ICU in the lab table
+select h.patientunitstayid,h.labname,regexp_replace(h.labresult, '([^0-9.])', '')
+from (
+select a.patientunitstayid,labname
+ ,labresulttext
+ ,labresultoffset
+ ,FIRST_VALUE(labresulttext)
+ over (
+  PARTITION by a.patientunitstayid,labname order by a.labresultoffset
+ ) labresult
+ from lab a
+ where (
+  a.labname = 'albumin' 
+  or a.labname = 'CRP'
+  or a.labname = 'WBC x 1000'
+  or a.labname = '-polys'
+  or a.labname = '-lymphs'
+  or a.labname = 'platelets x 1000'
+  or a.labname = '-monos'
+  or a.labname = 'ALT (SGPT)'
+  or a.labname = 'AST (SGOT)'
+  or a.labname = 'LDH'
+  or a.labname = 'creatinine'
+  or a.labname = 'triglycerides'--TG
+  or a.labname = 'total cholesterol'--TC
+ )
+ and a.labresultoffset > 0
+ order by a.patientunitstayid,a.labresultoffset--order, Patients' ID, time in ICU£¨min£©
+ ) h
+ ;
+
+--extract each patient's 13 indicators data at last admission to ICU in the lab table
+select h.patientunitstayid,h.labname,regexp_replace(h.labresult, '([^0-9.])', '')
+from (
+select a.patientunitstayid,labname
+ ,labresulttext
+ ,labresultoffset
+ ,LAST_VALUE(labresulttext)
+ over (
+  PARTITION by a.patientunitstayid,labname order by a.labresultoffset
+ ) labresult
+ from lab a
+ where (
+  a.labname = 'albumin' 
+  or a.labname = 'CRP'
+  or a.labname = 'WBC x 1000'
+  or a.labname = '-polys'
+  or a.labname = '-lymphs'
+  or a.labname = 'platelets x 1000'
+  or a.labname = '-monos'
+  or a.labname = 'ALT (SGPT)'
+  or a.labname = 'AST (SGOT)'
+  or a.labname = 'LDH'
+  or a.labname = 'creatinine'
+  or a.labname = 'triglycerides'--TG
+  or a.labname = 'total cholesterol'--TC
+ )
+ and a.labresultoffset > 0
+ order by a.patientunitstayid,a.labresultoffset--order, Patients' ID, time in ICU£¨min£©
+ ) h
+ ;
+
+
+
+--Patients' ID, outcome, gender, age, unit type, total score, admission time, discharge time, length (calculated), hospital length of stays(Los), ICU time, hospital ID, region, outcome in the lab table
+select a.patientunitstayid,a.unitdischargestatus,a.gender
+	,a.age,a.unitType,c.apachescore
+	,a.hospitaladmitoffset,a.hospitaldischargeoffset
+	,a.hospitaldischargeoffset - a.hospitaladmitoffset timeInHospital
+	,c.unabridgedhosplos
+	,c.unabridgedunitlos
+	,a.hospitalid
+	,d.region
+	,e.labname
+	,e.labresultoffset
+	--,e.labresulttext
+	,regexp_replace(e.labresulttext, '([^0-9.])', '')
+	from patient a,diagnosis b,apachepatientresult c,hospital d,lab e
+	where a.patientunitstayid = b.patientunitstayid
+	and a.patientunitstayid = c.patientunitstayid
+	and a.hospitalid = d.hospitalid
+	and a.patientunitstayid = e.patientunitstayid
+	and (
+		e.labname = 'albumin' 
+		or e.labname = 'CRP'
+		or e.labname = 'WBC x 1000'
+		or e.labname = '-polys'
+		or e.labname = '-lymphs'
+		or e.labname = 'platelets x 1000'
+		or e.labname = '-monos'
+		or e.labname = 'ALT (SGPT)'
+		or e.labname = 'AST (SGOT)'
+		or e.labname = 'LDH'
+		or e.labname = 'creatinine'
+		or e.labname = 'triglycerides'--TG
+		or e.labname = 'total cholesterol'--TC
+	)
+	and e.labresultoffset > 0
+	and b.activeupondischarge = 'True'
+	and b.diagnosispriority = 'Primary'
+	and c.apacheversion = 'IV';
